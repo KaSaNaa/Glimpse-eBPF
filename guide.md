@@ -1,72 +1,75 @@
-# The "Minimal Scope" Strategy
+# The Solo Developer Strategy
 
-To finish this alone, you must be ruthless. Do not build a fancy UI or a full security suite. Focus purely on:
-
-1. **The Kernel Logic:** One robust sketch (Count-Min Sketch) in eBPF.
-2. **The Trigger:** A simple "Heavy Hitter" detection (identifying IPs that take up too much bandwidth).
-3. **The Evidence:** A PDF report showing how your sketch uses 1/10th the memory of standard methods while maintaining 95% accuracy.
+To finish this alone, you must avoid building a full commercial suite. Your goal is to prove **one technical concept**: that an eBPF-based "shared primitive" can intelligently manage telemetry load without losing accuracy.
 
 ---
 
-### Month-by-Month Roadmap
+### **6-Month Phase Roadmap**
 
-#### Phase 1: The Foundation (Months 1–2)
+#### **Phase 1: Environment & "Hello World" (Month 1)**
 
-**Goal:** Master the environment and build a "Hello World" that actually does something.
+* **Goal:** Set up your "Lab" and run your first in-kernel program.
+* **Action:** Install a Linux VM (Ubuntu 22.04+). Use **libbpf-bootstrap** to avoid complex Makefile configuration.
+* **Milestone:** A program that intercepts packets at the XDP layer and prints "Packet Received" to the trace pipe.
 
-* **Action:** Set up a Linux VM (Ubuntu 22.04+ is easiest). Install `clang`, `llvm`, and `libbpf`.
-* **The "Hard Work" Artifact:** Use **libbpf-bootstrap**. It provides the Makefile and scaffolding so you don't waste weeks on build errors.
-* **Milestone:** Build a program that counts total packets per IP using a standard `BPF_MAP_TYPE_HASH`.
-* **Why this is research:** This is your **Baseline**. You need this to prove that your later "Sketch" version is better.
 
-#### Phase 2: Implementing the "Impossible" (Months 3–4)
+* **Research Baseline:** Create a simple eBPF program that counts total packets per Source IP using a standard `BPF_MAP_TYPE_HASH`. This is your comparison point.
 
-**Goal:** Build the Count-Min Sketch (CMS).
 
-* **Action:** Replace the simple Hash Map with a 2D Array Map (`BPF_MAP_TYPE_ARRAY`).
-* **The Challenge:** Implement 3–4 different hash functions (like Jenkins or Murmur) in C. The eBPF verifier will hate loops, so you must **unroll** them or use fixed iterations.
-* **Milestone:** A kernel program that updates a 2D grid of counters every time a packet arrives, using almost zero CPU.
 
-#### Phase 3: The "Trigger" & User-Space (Month 5)
+#### **Phase 2: The Probabilistic Sketch (Months 2–3)**
 
-**Goal:** Make the kernel talk to the outside world.
+* **Goal:** Implement the "TFM" (Traffic Feature Map) using a **Count-Min Sketch (CMS)**.
+* **Action:** Replace your heavy Hash Map with a fixed-size array (`BPF_MAP_TYPE_ARRAY`).
+* **Technical Challenge:** In eBPF, you cannot use complex loops. You must implement a simple, fast hash function (like Jenkins or Murmur) that the **eBPF Verifier** will accept.
 
-* **Action:** Set a threshold. If an IP's estimated count in the CMS exceeds `X`, send an event to user-space using a `BPF_RINGBUF`.
-* **Milestone:** A Python script that prints "WARNING: Possible DDoS from IP [x.x.x.x]" when the kernel detects a heavy hitter.
 
-#### Phase 4: The Evaluation (Months 6–7)
+* **Milestone:** A kernel program that updates a 2D grid of counters, tracking millions of packets in just a few kilobytes of memory.
 
-**Goal:** This is where you get your "Research" marks.
 
-* **Action:** Download a public dataset (like **CAIDA** traces). Replay these packets through your code using `tcpreplay`.
-* **The Experiment:** Run the "Baseline" (Phase 1) and your "SketchMon" (Phase 2) side-by-side.
-* **Measure:** 1. **Memory:** How many MBs does the Hash Map use vs. the Sketch? (Usually 100MB vs 1MB).
-2. **Accuracy:** How many "Heavy Hitters" did the Sketch miss compared to the perfect Hash Map?
-* **The Artifact:** Create a series of graphs showing these trade-offs.
 
-#### Phase 5: Final Documentation & "Monetization" Pitch (Month 8)
+#### **Phase 3: Adaptive Triggering Logic (Month 4)**
 
-**Goal:** Wrap it up.
+* **Goal:** Make the system "intelligent."
+* **Action:** Write a user-space Python script that monitors the "fill-rate" or "error-rate" of your sketch.
+* **The "Adaptive" Part:** When the script detects high load (e.g., >10k flows/sec), it sends a signal to the kernel to switch from "High Detail" (detailed flow tracking) to "Low Detail" (probabilistic summarizing) to prevent CPU exhaustion.
 
-* **Action:** Write your thesis.
-* **Monetization Angle:** Frame your project as a "Library for Cloud-Native Observability." Even if the code is simple, the *architecture* (TFM - Traffic Feature Maps) is what you would sell or open-source.
+
+* **Milestone:** The system automatically "compresses" its data during a simulated traffic spike.
+
+#### **Phase 4: Evaluation & Data Collection (Months 5–6)**
+
+* **Goal:** Prove the "hard work" with numbers.
+* **Action:** Use a tool like `pktgen` or `tcpreplay` to feed your system real-world traces (like CAIDA traces).
+
+
+* **Comparison:** Record the CPU and Memory usage of your **Glimpse-eBPF** vs. the **Baseline** you built in Phase 1.
+
+
+* **Milestone:** Create graphs showing your system maintains ~95% accuracy while using 1/10th the memory of traditional methods.
+
+
 
 ---
 
-### How to "Show You Worked Hard" (Your Portfolio)
+### **How to "Show You Worked Hard" (Portfolio Evidence)**
 
-Even if you don't finish every feature, your supervisors will give you top marks if you show **technical rigor**. Keep these three things as "proof":
+Even if your final code has bugs, these three "Artifacts" will prove your research rigor to your markers:
 
-1. **The Verifier Log Diary:** Keep a text file of the most frustrating errors the eBPF verifier gave you and the code snippets you used to bypass them. This proves you conquered the "impossible" parts of kernel programming.
-2. **The Benchmarking Suite:** A folder of scripts that automatically runs your experiments. This shows you didn't just "guess"—you used the scientific method.
-3. **The "Future Work" Section:** Research is a cycle. A solo developer who says "I couldn't finish the ML part, but here is exactly how the next person should do it" is viewed as a mature, professional researcher.
+1. **The Verifier Diary:** Keep a log of every time the eBPF Verifier rejected your code. Documenting how you optimized your C code to satisfy the kernel's safety constraints is the definition of "doing the impossible" in this field.
 
-### Your First Step (Today)
 
-Do not read more papers. Do this:
+2. **The Methodology Log:** Document your choice of hash functions and why you chose a specific "bucket" size for your sketch. This turns a "coding project" into a "science project".
 
-1. **Clone** the [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap) repository.
-2. **Run** the `minimal` example.
-3. **Modify** it to print the Source IP of every incoming packet.
 
-**Once you see those IPs printing in your terminal, you have officially started your research career.**
+3. **The "Future Work" Section:** Research is about knowing where you stopped. If you didn't have time for the React dashboard, write a detailed plan for how it *would* have integrated. This shows high-level architectural thinking.
+
+
+
+### **Immediate Next Step**
+
+Don't write any code yet.
+
+1. **Clone** [libbpf-bootstrap](https://github.com/libbpf/libbpf-bootstrap).
+2. **Compile** the `minimal` example.
+3. If it runs, your environment is ready. If not, your first "hard work" task is fixing your Linux kernel headers!
